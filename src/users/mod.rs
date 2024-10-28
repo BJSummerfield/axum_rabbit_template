@@ -1,5 +1,7 @@
+mod db;
 mod errors;
 mod handlers;
+mod messages;
 mod models;
 mod routes;
 

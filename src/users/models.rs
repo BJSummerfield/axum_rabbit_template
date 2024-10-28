@@ -1,58 +1,70 @@
 use super::Result;
-use bb8::Pool;
-use bb8_postgres::PostgresConnectionManager;
-use lapin::{options::*, BasicProperties, Channel};
+use crate::AppState;
+use axum::{http::StatusCode, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
-use tokio_postgres::NoTls;
 
-#[derive(Serialize, Deserialize)]
-pub struct CreateUser {
-    pub name: String,
-    pub email: String,
-}
-
-impl CreateUser {
-    pub async fn create_pg(self, db_pool: &Pool<PostgresConnectionManager<NoTls>>) -> Result<User> {
-        let mut conn = db_pool.get().await?;
-        let tx = conn.transaction().await?;
-        let row = tx
-            .query_one(
-                "INSERT INTO users (name, email) VALUES ($1, $2) RETURNING id, name, email",
-                &[&self.name, &self.email],
-            )
-            .await?;
-
-        let user = User {
-            id: row.get(0),
-            name: row.get(1),
-            email: row.get(2),
-        };
-
-        tx.commit().await?;
-        Ok(user)
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct User {
     pub id: i32,
     pub name: String,
     pub email: String,
 }
 
-impl User {
-    pub async fn publish_rabbit(&self, rabbit_channel: &Channel) -> Result<()> {
-        let message = serde_json::to_string(self)?;
-        rabbit_channel
-            .basic_publish(
-                "user_events",
-                "user.created",
-                BasicPublishOptions::default(),
-                message.as_bytes(),
-                BasicProperties::default(),
-            )
-            .await?;
+#[derive(Debug, Deserialize)]
+pub enum UserAction {
+    Create(CreateInput),
+    // Get(GetInput),
+    // Update(UpdateInput),
+    // Delete(DeleteInput),
+    // List, // No associated data needed
+}
 
-        Ok(())
+#[derive(Debug, Deserialize)]
+pub struct CreateInput {
+    pub name: String,
+    pub email: String,
+}
+
+// #[derive(Debug, Deserialize)]
+// pub struct GetInput {
+//     pub id: i32,
+// }
+//
+// #[derive(Debug, Deserialize)]
+// pub struct UpdateInput {
+//     pub id: i32,
+//     pub name: Option<String>,
+//     pub email: Option<String>,
+// }
+//
+// #[derive(Debug, Deserialize)]
+// pub struct DeleteInput {
+//     pub id: i32,
+// }
+
+impl UserAction {
+    pub async fn execute(self, state: &AppState) -> Result<impl IntoResponse> {
+        match self {
+            UserAction::Create(input) => {
+                let user = User::create(&state.db_pool, input).await?;
+                user.publish(&state.rabbit_channel).await?;
+                Ok((StatusCode::CREATED, Json(user)))
+            } // UserAction::Get { id } => {
+              //     let user = User::get_from_db(db, id).await?;
+              //     Ok((StatusCode::OK, Json(user)))
+              // }
+              // UserAction::Update { id, name, email } => {
+              //     let user = User::update_in_db(db, id, name, email).await?;
+              //     Ok((StatusCode::OK, Json(user)))
+              // }
+              // UserAction::Delete { id } => {
+              //     User::delete_from_db(db, id).await?;
+              //     Ok((StatusCode::NO_CONTENT, Json("User deleted successfully")))
+              // }
+              // UserAction::List => {
+              //     let users = User::list_from_db(db).await?;
+              //     Ok((StatusCode::OK, Json(users)))
+              // }
+        }
     }
 }

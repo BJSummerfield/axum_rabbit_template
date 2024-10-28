@@ -1,23 +1,16 @@
-use super::{CreateUser, Result};
+use super::{CreateInput, Result, UserAction};
 use crate::AppState;
-use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
+use axum::{extract::State, response::IntoResponse, Json};
 
 pub struct UserHandlers;
 
 impl UserHandlers {
     pub async fn create(
         State(state): State<AppState>,
-        Json(payload): Json<CreateUser>,
+        Json(payload): Json<CreateInput>,
     ) -> Result<impl IntoResponse> {
-        let user = CreateUser {
-            name: payload.name,
-            email: payload.email,
-        }
-        .create_pg(&state.db_pool)
-        .await?;
+        let response = UserAction::Create(payload).execute(&state).await?;
 
-        user.publish_rabbit(&state.rabbit_channel).await?;
-
-        Ok((StatusCode::CREATED, Json(user)))
+        Ok(response)
     }
 }
