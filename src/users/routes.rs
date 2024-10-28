@@ -1,11 +1,11 @@
 use super::UserHandlers;
 use crate::AppState;
 
-use axum::{routing::post, Router};
+use axum::{routing::get, Router};
 pub struct UserRoutes;
 
 impl UserRoutes {
     pub fn routes() -> Router<AppState> {
-        Router::new().route("/users", post(UserHandlers::create))
+        Router::new().route("/users", get(UserHandlers::list).post(UserHandlers::create))
     }
 }
