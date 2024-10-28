@@ -1,0 +1,27 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq-axum-tests
+    ports:
+      - "5672:5672"     # RabbitMQ port for AMQP protocol
+      - "15672:15672"   # RabbitMQ Management Console (for browser access)
+    environment:
+      RABBITMQ_DEFAULT_USER: admin 
+      RABBITMQ_DEFAULT_PASS: admin 
+
+  postgres:
+      image: postgres:14
+      container_name: postgres-axum-tests
+      environment:
+        POSTGRES_USER: user
+        POSTGRES_PASSWORD: password
+        POSTGRES_DB: users_db
+      ports:
+        - "5432:5432"
+      volumes:
+        - postgres_data:/var/lib/postgresql/data
+        - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  postgres_data:
+    driver: local
