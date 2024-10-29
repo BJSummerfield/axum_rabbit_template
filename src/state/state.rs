@@ -30,6 +30,7 @@ impl AppState {
 
         let manager = PostgresConnectionManager::new(config, NoTls);
         Pool::builder()
+            .max_size(15)
             .build(manager)
             .await
             .expect("Failed to create PostgreSQL connection pool")
