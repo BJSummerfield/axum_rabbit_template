@@ -1,6 +1,6 @@
 use super::{
-    CreateInput, Error, ListInput, Result, SortOrder, UpdateInput, User, UserFields, UserList,
-    UserResponse,
+    CreateInput, DeletedUser, Error, ListInput, Result, SortOrder, UpdateInput, User, UserFields,
+    UserList, UserResponse,
 };
 
 use bb8::Pool;
@@ -157,7 +157,10 @@ impl User {
         }
 
         let row = transaction
-            .query_one("SELECT id, username FROM users WHERE id = $1", &[&input.id])
+            .query_one(
+                "SELECT id, name, email FROM users WHERE id = $1",
+                &[&input.id],
+            )
             .await?;
 
         transaction.commit().await?;
@@ -182,6 +185,6 @@ impl User {
             return Err(Error::NotFound(format!("User with id {} not found", id)));
         }
 
-        Ok(UserResponse::Delete(id))
+        Ok(UserResponse::Delete(DeletedUser { id }))
     }
 }

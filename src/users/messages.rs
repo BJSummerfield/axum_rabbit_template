@@ -3,8 +3,7 @@ use lapin::{options::*, BasicProperties, Channel};
 
 impl UserResponse {
     pub async fn publish(&self, rabbit_channel: &Channel) -> Result<()> {
-        let message = self.build_message()?;
-        let routing_key = self.generate_routing_key()?;
+        let (routing_key, message) = self.prepare_publish_data()?;
 
         rabbit_channel
             .basic_publish(
@@ -20,24 +19,15 @@ impl UserResponse {
         Ok(())
     }
 
-    fn build_message(&self) -> Result<String> {
+    fn prepare_publish_data(&self) -> Result<(&str, String)> {
         match self {
-            UserResponse::Create(user) | UserResponse::Update(user) | UserResponse::Get(user) => {
-                Ok(serde_json::to_string(user)?)
+            UserResponse::Create(user) => Ok(("user.created", serde_json::to_string(user)?)),
+            UserResponse::Update(user) => Ok(("user.updated", serde_json::to_string(user)?)),
+            UserResponse::Delete(deleted_user) => {
+                Ok(("user.deleted", serde_json::to_string(deleted_user)?))
             }
             _ => Err(Error::ValidationError(
                 "Invalid context for publishing message".into(),
-            )),
-        }
-    }
-
-    fn generate_routing_key(&self) -> Result<&str> {
-        match self {
-            UserResponse::Create(_) => Ok("user.created"),
-            UserResponse::Update(_) => Ok("user.updated"),
-            UserResponse::Delete(_) => Ok("user.deleted"),
-            _ => Err(Error::ValidationError(
-                "Invalid context for generating routing key".into(),
             )),
         }
     }

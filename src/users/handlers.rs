@@ -40,6 +40,7 @@ impl UserHandlers {
     ) -> Result<impl IntoResponse> {
         payload.id = id;
         let response = UserAction::Update(payload).execute(&state).await?;
+        response.publish(&state.rabbit_channel).await?;
         Ok(response)
     }
 
@@ -48,6 +49,7 @@ impl UserHandlers {
         Path(id): Path<i32>,
     ) -> Result<impl IntoResponse> {
         let response = UserAction::Delete(id).execute(&state).await?;
+        response.publish(&state.rabbit_channel).await?;
         Ok(response)
     }
 }

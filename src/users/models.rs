@@ -51,28 +51,38 @@ pub enum UserAction {
     List(ListInput<UserFields>),
 }
 
+impl UserAction {
+    pub async fn execute(self, state: &AppState) -> Result<UserResponse> {
+        match self {
+            UserAction::Create(input) => {
+                let response = User::create(&state.db_pool, input).await?;
+                Ok(response)
+            }
+            UserAction::Get(input) => {
+                let response = User::get(&state.db_pool, input).await?;
+                Ok(response)
+            }
+            UserAction::List(input) => {
+                let response = User::list(&state.db_pool, input).await?;
+                Ok(response)
+            }
+            UserAction::Update(input) => {
+                let response = User::update(&state.db_pool, input).await?;
+                Ok(response)
+            }
+            UserAction::Delete(input) => {
+                let response = User::delete(&state.db_pool, input).await?;
+                Ok(response)
+            }
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CreateInput {
     pub name: String,
     pub email: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct UpdateInput {
-    pub id: i32,
-    pub name: Option<String>,
-    pub email: Option<String>,
-}
-
-impl UpdateInput {
-    pub fn fields_to_update(&self) -> Vec<(UserFields, Option<&str>)> {
-        vec![
-            (UserFields::Name, self.name.as_deref()),
-            (UserFields::Email, self.email.as_deref()),
-        ]
-    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -101,13 +111,36 @@ impl std::fmt::Display for SortOrder {
     }
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct UpdateInput {
+    #[serde(skip_deserializing)]
+    pub id: i32,
+    pub name: Option<String>,
+    pub email: Option<String>,
+}
+
+impl UpdateInput {
+    pub fn fields_to_update(&self) -> Vec<(UserFields, Option<&str>)> {
+        vec![
+            (UserFields::Name, self.name.as_deref()),
+            (UserFields::Email, self.email.as_deref()),
+        ]
+    }
+}
+
+#[derive(Serialize)]
+pub struct DeletedUser {
+    pub id: i32,
+}
+
 #[derive(Serialize)]
 pub enum UserResponse {
     Create(User),
     Get(User),
     List(UserList),
     Update(User),
-    Delete(i32),
+    Delete(DeletedUser),
 }
 
 impl IntoResponse for UserResponse {
@@ -118,33 +151,6 @@ impl IntoResponse for UserResponse {
             UserResponse::List(user_list) => (StatusCode::OK, Json(user_list)).into_response(),
             UserResponse::Update(user) => (StatusCode::OK, Json(user)).into_response(),
             UserResponse::Delete(_) => (StatusCode::NO_CONTENT).into_response(),
-        }
-    }
-}
-
-impl UserAction {
-    pub async fn execute(self, state: &AppState) -> Result<UserResponse> {
-        match self {
-            UserAction::Create(input) => {
-                let response = User::create(&state.db_pool, input).await?;
-                Ok(response)
-            }
-            UserAction::Get(input) => {
-                let response = User::get(&state.db_pool, input).await?;
-                Ok(response)
-            }
-            UserAction::List(input) => {
-                let response = User::list(&state.db_pool, input).await?;
-                Ok(response)
-            }
-            UserAction::Update(input) => {
-                let response = User::update(&state.db_pool, input).await?;
-                Ok(response)
-            }
-            UserAction::Delete(input) => {
-                let response = User::delete(&state.db_pool, input).await?;
-                Ok(response)
-            }
         }
     }
 }
